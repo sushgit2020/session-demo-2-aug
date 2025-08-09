@@ -35,7 +35,7 @@ RUN pip install --no-cache-dir \
 
 # Copy the ML demo script
 COPY train.py .
-COPY test_local.py* ./
+# COPY test_local.py* ./
 
 # Create directories for outputs
 RUN mkdir -p outputs/models outputs/logs outputs/plots
