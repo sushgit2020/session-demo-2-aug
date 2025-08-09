@@ -34,7 +34,7 @@ RUN pip install --no-cache-dir \
     jupyter==1.0.0
 
 # Copy the ML demo script
-COPY simple_ml_demo.py .
+COPY train.py .
 COPY test_local.py* ./
 
 # Create directories for outputs
