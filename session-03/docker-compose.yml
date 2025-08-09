@@ -1,0 +1,63 @@
+# Scikit-Learn ML Demo - Docker Compose for Podman
+# Comprehensive ML training and development environment
+
+version: '3.8'
+
+services:
+  # Main ML training demo service
+  ml-training:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      # Mount local directories to save outputs
+      - ./outputs:/app/outputs
+    environment:
+      - PYTHONPATH=/app
+      - MPLCONFIGDIR=/tmp/matplotlib
+    # Run the comprehensive ML demo
+    command: ["python", "train.py"]
+    
+  # Jupyter notebook service for interactive development
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/app/workspace
+      - ./outputs:/app/outputs
+    environment:
+      - PYTHONPATH=/app
+      - MPLCONFIGDIR=/tmp/matplotlib
+    command: >
+      bash -c "
+        cd /app/workspace &&
+        jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser 
+        --allow-root --NotebookApp.token='' --NotebookApp.password=''
+        --notebook-dir=/app/workspace
+      "
+    profiles:
+      - development
+      
+  # Interactive ML playground service
+  interactive:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app/workspace
+      - ./outputs:/app/outputs
+    environment:
+      - PYTHONPATH=/app
+      - MPLCONFIGDIR=/tmp/matplotlib
+    stdin_open: true
+    tty: true
+    command: ["python", "-i", "train.py"]
+    profiles:
+      - interactive
+
+volumes:
+  # Named volume for persistent ML data
+  ml_data:

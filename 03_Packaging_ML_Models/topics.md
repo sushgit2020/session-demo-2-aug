@@ -5,6 +5,6 @@
 3. Data Handling Module
 4. Pipelines
 5. Create Config Module
-6. Requirements.txt File
-7. Testing Virtual Environments
-8. Model Packaging (Revisited)
+6. Requirements.txt File - Done
+7. Testing Virtual Environments - Done
+8. Model Packaging (Revisited) - To be checked.
