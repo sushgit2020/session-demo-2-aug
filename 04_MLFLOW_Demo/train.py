@@ -85,10 +85,21 @@ class MLflowParameterSweep:
     def _setup_mlflow(self):
         """Set up MLflow tracking."""
         try:
-            # Set MLflow tracking URI (use absolute path)
-            mlflow_uri = os.environ.get('MLFLOW_TRACKING_URI', f'file://{self.output_dir.absolute()}/mlruns')
+            # Set MLflow tracking URI (cross-platform compatible)
+            if os.environ.get('MLFLOW_TRACKING_URI'):
+                mlflow_uri = os.environ.get('MLFLOW_TRACKING_URI')
+            else:
+                mlruns_path = self.output_dir.absolute() / "mlruns"
+                mlruns_path.mkdir(parents=True, exist_ok=True)
+                
+                mlflow_uri = mlruns_path.as_uri()
+                
+                if os.name == 'nt' and not mlflow_uri.startswith('file:///'):
+                    mlflow_uri = mlflow_uri.replace('file://', 'file:///')
+            
             mlflow.set_tracking_uri(mlflow_uri)
             logger.info(f"📍 MLflow tracking URI: {mlflow_uri}")
+            logger.info(f"📂 MLruns directory: {self.output_dir.absolute() / 'mlruns'}")
             
             # Set or create experiment
             try:
@@ -99,9 +110,18 @@ class MLflowParameterSweep:
                     experiment = None
                 
                 if experiment is None or experiment.lifecycle_stage == "deleted":
+                    # Create cross-platform artifact location
+                    artifact_path = self.output_dir.absolute() / "mlflow-artifacts"
+                    artifact_path.mkdir(parents=True, exist_ok=True)
+                    artifact_uri = artifact_path.as_uri()
+                    
+                    # Fix for Windows file URIs
+                    if os.name == 'nt' and not artifact_uri.startswith('file:///'):
+                        artifact_uri = artifact_uri.replace('file://', 'file:///')
+                    
                     experiment_id = mlflow.create_experiment(
                         self.experiment_name, 
-                        artifact_location=f"{self.output_dir.absolute()}/mlflow-artifacts"
+                        artifact_location=artifact_uri
                     )
                     logger.info(f"✅ Created MLflow experiment: {self.experiment_name} (ID: {experiment_id})")
                 else:
