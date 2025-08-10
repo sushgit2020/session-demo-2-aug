@@ -5,6 +5,7 @@ Usage examples:
     python run_demo.py --dataset iris           # Run on iris only
     python run_demo.py --quick                  # Quick test with fewer combinations
     python run_demo.py --start-mlflow           # Start MLflow UI only
+    mlflow ui
 """
 
 import argparse
