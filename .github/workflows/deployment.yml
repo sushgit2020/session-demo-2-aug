@@ -3,12 +3,6 @@ name: End-to-End Pipeline CI/CD
 on:
   push:
     branches: [ main, develop, staging ]
-    paths:
-      - '05_Session_Demo/**'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - '05_Session_Demo/**'
   workflow_dispatch:
     inputs:
       environment:
