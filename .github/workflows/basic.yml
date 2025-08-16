@@ -5,10 +5,12 @@ on:
     branches: [ main, develop ]
     paths:
       - '05_Session_Demo/**'
+      - '.github\workflows\basic.yml'
   pull_request:
     branches: [ main ]
     paths:
       - '05_Session_Demo/**'
+      - '.github\workflows\basic.yml'
   workflow_dispatch:
 
 env:
