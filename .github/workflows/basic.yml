@@ -46,5 +46,5 @@ jobs:
       with:
         name: pipeline-artifacts
         path: |
-          05_Session_Demo/pipeline_artifacts/
+          05_Session_Demo/models/
         retention-days: 7
