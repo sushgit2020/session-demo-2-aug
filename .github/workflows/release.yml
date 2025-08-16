@@ -52,7 +52,9 @@ jobs:
                 tag_name: ${{env.VERSION}}
                 release_name: "Release ${{env.VERSION}}"
                 body: "Automated release"
-          
+            
+            - name : Zip model files
+              run : zip -j models.zip 05_Session_Demo/models/*.pkl
 
             - name: Upload
               uses: actions/upload-release-asset@v1
@@ -60,9 +62,9 @@ jobs:
                 GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
                 upload_url: ${{ steps.create_release.outputs.upload_url }}
-                asset_path: 05_Session_Demo/models
-                asset_name: model.pkl
-                asset_content_type: application/octet-stream
+                asset_path: 05_Session_Demo/models/models.zip
+                asset_name: models.zip
+                asset_content_type: application/zip
             
 
         
