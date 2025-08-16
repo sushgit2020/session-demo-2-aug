@@ -10,6 +10,11 @@ import joblib
 import os
 import json
 from pathlib import Path
+from datetime import datetime
+
+# --- MLflow imports ---
+import mlflow
+import mlflow.sklearn
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -122,8 +127,7 @@ class LoanApprovalModel:
         with open(f"{model_dir}/label_encoders.pkl", 'wb') as f:
             pickle.dump(self.label_encoders, f)
 
-        # Also write a copy at repo root of this folder for the workflow release asset
-        # (The workflow expects model-demo/model.pkl)
+        # Also write a copy for the workflow release asset (models/model.pkl)
         with open("model.pkl", "wb") as f:
             pickle.dump(self.model, f)
 
@@ -157,6 +161,9 @@ def write_reports(y_test, y_pred, accuracy, out_dir: Path):
     }
     (out_dir / "metrics.json").write_text(json.dumps(metrics_json, indent=2))
 
+    # Also save confusion matrix as CSV for convenience
+    pd.DataFrame(cm, index=["Actual_0","Actual_1"], columns=["Pred_0","Pred_1"]).to_csv(out_dir / "confusion_matrix.csv")
+
     cls_report_text = classification_report(y_test, y_pred)
     md = []
     md.append("# Loan Model – Evaluation Report")
@@ -179,7 +186,14 @@ def write_reports(y_test, y_pred, accuracy, out_dir: Path):
 
 def main():
     logger.info("Starting Loan Approval Model Training Pipeline")
-    
+
+    # --- MLflow local tracking setup ---
+    # Store runs under repo-local model-demo/mlruns/ for easy artifact upload by CI
+    tracking_dir = Path("mlruns")
+    tracking_dir.mkdir(parents=True, exist_ok=True)
+    mlflow.set_tracking_uri(f"file:{tracking_dir.as_posix()}")
+    mlflow.set_experiment("loan-approval")
+
     model = LoanApprovalModel()
     
     df = model.create_sample_data()
@@ -187,12 +201,45 @@ def main():
     
     df_processed = model.preprocess_data(df)
     X_test, y_test, y_pred, accuracy = model.train_model(df_processed)
-    model.save_model()
 
-    # Reports for CI summary/artifacts
+    # --- Reports for CI summary/artifacts ---
     reports_dir = Path("reports")
     write_reports(y_test, y_pred, accuracy, reports_dir)
-    
+
+    # --- Log to MLflow ---
+    run_name = f"rf-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}"
+    with mlflow.start_run(run_name=run_name) as run:
+        # Params
+        mlflow.log_param("model_type", "RandomForestClassifier")
+        mlflow.log_param("n_estimators", model.model.n_estimators)
+        mlflow.log_param("random_state", model.model.random_state)
+        mlflow.log_param("scaler", "StandardScaler")
+        # Metrics
+        cls_report_dict = classification_report(y_test, y_pred, output_dict=True)
+        mlflow.log_metric("accuracy", float(accuracy))
+        mlflow.log_metric("precision_weighted", float(cls_report_dict["weighted avg"]["precision"]))
+        mlflow.log_metric("recall_weighted", float(cls_report_dict["weighted avg"]["recall"]))
+        mlflow.log_metric("f1_weighted", float(cls_report_dict["weighted avg"]["f1-score"]))
+        # Artifacts (reports and confusion matrix)
+        mlflow.log_artifact(reports_dir / "report.md", artifact_path="reports")
+        mlflow.log_artifact(reports_dir / "metrics.json", artifact_path="reports")
+        if (reports_dir / "confusion_matrix.csv").exists():
+            mlflow.log_artifact(reports_dir / "confusion_matrix.csv", artifact_path="reports")
+        # Model
+        mlflow.sklearn.log_model(sk_model=model.model, artifact_path="model")
+
+        run_id = run.info.run_id
+        artifact_uri = mlflow.get_artifact_uri()
+        # Save a small text file so CI can echo in the Summary
+        (reports_dir / "mlflow_run.txt").write_text(
+            f"- **MLflow run_id**: `{run_id}`\n"
+            f"- **Artifact URI**: `{artifact_uri}`\n"
+        )
+        logger.info(f"MLflow run complete: run_id={run_id}, artifact_uri={artifact_uri}")
+
+    # Persist model files (for release + artifacts)
+    model.save_model()
+
     logger.info("Pipeline completed successfully")
     
     sample_prediction = model.model.predict(model.scaler.transform(X_test[:5]))
