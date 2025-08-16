@@ -1,4 +1,4 @@
-name: Train Loan Model
+name: Train Loan Model with MLFLow
 
 permissions:
   contents: write
