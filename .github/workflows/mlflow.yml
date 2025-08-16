@@ -30,7 +30,7 @@ jobs:
       - name: Train model
         run: |
           cd 05_Session_Demo
-          python model.py
+          python train.py
 
       # Show metrics + MLflow run info in the Actions "Summary" tab
       - name: Publish evaluation to job summary
