@@ -4,10 +4,12 @@ import logging
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import pickle
 import joblib
 import os
+import json
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -89,7 +91,9 @@ class LoanApprovalModel:
         X = df.drop('loan_approved', axis=1)
         y = df['loan_approved']
         
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y
+        )
         
         X_train_scaled = self.scaler.fit_transform(X_train)
         X_test_scaled = self.scaler.transform(X_test)
@@ -107,35 +111,71 @@ class LoanApprovalModel:
     
     def save_model(self, model_dir="models"):
         logger.info("Saving model artifacts")
-        
         os.makedirs(model_dir, exist_ok=True)
-        
+
+        # Primary artifacts
         with open(f"{model_dir}/loan_model.pkl", 'wb') as f:
             pickle.dump(self.model, f)
-        
         joblib.dump(self.model, f"{model_dir}/loan_model.joblib")
-        
         with open(f"{model_dir}/scaler.pkl", 'wb') as f:
             pickle.dump(self.scaler, f)
-        
         with open(f"{model_dir}/label_encoders.pkl", 'wb') as f:
             pickle.dump(self.label_encoders, f)
-        
-        logger.info(f"Model artifacts saved to {model_dir}/")
+
+        # Also write a copy at repo root of this folder for the workflow release asset
+        # (The workflow expects model-demo/model.pkl)
+        with open("model.pkl", "wb") as f:
+            pickle.dump(self.model, f)
+
+        logger.info(f"Model artifacts saved to {model_dir}/ and model.pkl in CWD")
     
     def load_model(self, model_dir="models"):
         logger.info("Loading model artifacts")
         
         with open(f"{model_dir}/loan_model.pkl", 'rb') as f:
             self.model = pickle.load(f)
-        
         with open(f"{model_dir}/scaler.pkl", 'rb') as f:
             self.scaler = pickle.load(f)
-        
         with open(f"{model_dir}/label_encoders.pkl", 'rb') as f:
             self.label_encoders = pickle.load(f)
         
         logger.info("Model artifacts loaded successfully")
+
+def write_reports(y_test, y_pred, accuracy, out_dir: Path):
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cls_report_dict = classification_report(y_test, y_pred, output_dict=True)
+    cm = confusion_matrix(y_test, y_pred)
+
+    metrics_json = {
+        "accuracy": float(accuracy),
+        "precision_weighted": float(cls_report_dict["weighted avg"]["precision"]),
+        "recall_weighted": float(cls_report_dict["weighted avg"]["recall"]),
+        "f1_weighted": float(cls_report_dict["weighted avg"]["f1-score"]),
+        "class_0": cls_report_dict.get("0", {}),
+        "class_1": cls_report_dict.get("1", {}),
+        "confusion_matrix": cm.tolist()
+    }
+    (out_dir / "metrics.json").write_text(json.dumps(metrics_json, indent=2))
+
+    cls_report_text = classification_report(y_test, y_pred)
+    md = []
+    md.append("# Loan Model – Evaluation Report")
+    md.append("")
+    md.append(f"- **Accuracy**: `{accuracy:.4f}`")
+    md.append("")
+    md.append("## Classification Report")
+    md.append("")
+    md.append("```text")
+    md.append(cls_report_text)
+    md.append("```")
+    md.append("")
+    md.append("## Confusion Matrix")
+    md.append("")
+    md.append("```text")
+    md.append(str(cm))
+    md.append("```")
+    (out_dir / "report.md").write_text("\n".join(md))
+    logger.info(f"Wrote report to {out_dir}/report.md and metrics to {out_dir}/metrics.json")
 
 def main():
     logger.info("Starting Loan Approval Model Training Pipeline")
@@ -146,10 +186,12 @@ def main():
     logger.info(f"Sample data created with {len(df)} records")
     
     df_processed = model.preprocess_data(df)
-    
     X_test, y_test, y_pred, accuracy = model.train_model(df_processed)
-    
     model.save_model()
+
+    # Reports for CI summary/artifacts
+    reports_dir = Path("reports")
+    write_reports(y_test, y_pred, accuracy, reports_dir)
     
     logger.info("Pipeline completed successfully")
     
