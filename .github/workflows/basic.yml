@@ -1,0 +1,50 @@
+name: Pipeline CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - '05_Session_Demo/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '05_Session_Demo/**'
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.11'
+  HYPERPARAM_1: 11
+
+jobs:
+  test-pipeline:
+    name: Test ML Pipeline
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install dependencies
+      run: |
+        cd 05_Session_Demo
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Train Model
+      run: |
+        cd 05_Session_Demo
+        python train.py
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: pipeline-artifacts
+        path: |
+          05_Session_Demo/pipeline_artifacts/
+        retention-days: 7
