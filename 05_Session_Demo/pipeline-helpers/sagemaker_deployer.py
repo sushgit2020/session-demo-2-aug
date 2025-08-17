@@ -12,6 +12,7 @@ from datetime import datetime
 import sagemaker
 from sagemaker.sklearn.model import SKLearnModel
 from sagemaker import get_execution_role
+import re
 
 
 def create_sagemaker_inference_script():
