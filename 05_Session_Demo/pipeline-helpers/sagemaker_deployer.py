@@ -91,6 +91,10 @@ def create_model_package():
     print("✅ Model package created: model.tar.gz")
     return "model.tar.gz"
 
+def sanitize_name(name: str, max_len: int = 60) -> str:
+    """Sanitize a string to meet SageMaker naming rules"""
+    safe = re.sub(r'[^a-zA-Z0-9-]', '-', name)
+    return safe[:max_len].rstrip('-')
 
 def deploy_to_sagemaker():
     """Deploy model to SageMaker"""
@@ -120,7 +124,12 @@ def deploy_to_sagemaker():
     print(f"📤 Model uploaded to: {model_s3_uri}")
     
     # Create SageMaker model
-    model_name = f"loan-approval-{manifest['pipeline_id']}"
+    raw_model_name = f"loan-approval-{manifest['pipeline_id']}"
+    model_name = sanitize_name(raw_model_name)
+
+    raw_endpoint_name = f"loan-approval-endpoint-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    endpoint_name = sanitize_name(raw_endpoint_name)
+
     endpoint_name = f"loan-approval-endpoint-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
     
     sklearn_model = SKLearnModel(
