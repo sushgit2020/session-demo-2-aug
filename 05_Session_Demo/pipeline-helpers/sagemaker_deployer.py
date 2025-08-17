@@ -102,7 +102,8 @@ def deploy_to_sagemaker():
     
     # Initialize SageMaker session
     session = sagemaker.Session()
-    role = os.getenv("SAGEMAKER_ROLE", get_execution_role())
+    # role = os.getenv("SAGEMAKER_ROLE", get_execution_role())
+    role = "arn:aws:iam::750952118292:role/service-role/AmazonSageMaker-ExecutionRole-20250615T204995"
     
     # Upload model to S3
     bucket = session.default_bucket()
