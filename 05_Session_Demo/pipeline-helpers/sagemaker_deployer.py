@@ -80,6 +80,9 @@ def create_model_package():
     
     with open("model/inference.py", "w") as f:
         f.write(inference_code)
+
+    with open("inference.py", "w") as f:
+        f.write(inference_code)
     
     # Create model.tar.gz
     with tarfile.open("model.tar.gz", "w:gz") as tar:
